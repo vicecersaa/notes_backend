@@ -3,23 +3,33 @@ const router = express.Router();
 const Enquiry = require("../models/Enquiry");
 const nodemailer = require("nodemailer");
 
-// 🔥 FORCE IPv4 (FIX ENETUNREACH IPv6)
+// ==============================
+// 🔥 FORCE IPv4 (WAJIB DI VPS)
+// ==============================
 const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 
 
 // ==============================
-// 📧 SMTP CONFIG (GMAIL FIXED)
+// 📧 SMTP TRANSPORTER (GMAIL FIXED)
 // ==============================
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587, // STARTTLS (JANGAN 465)
-  secure: false,
-  family: 4, // FORCE IPv4
+  port: 465, // 🔥 pakai SSL (lebih cocok di VPS yang block STARTTLS)
+  secure: true, // wajib true kalau 465
+
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // HARUS APP PASSWORD
+    pass: process.env.EMAIL_PASS, // APP PASSWORD GMAIL
   },
+
+  // 🔥 bantu stabilin koneksi di VPS
+  family: 4,
+
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
+
   tls: {
     rejectUnauthorized: false,
   },
@@ -27,11 +37,11 @@ const transporter = nodemailer.createTransport({
 
 
 // ==============================
-// 🔍 TEST SMTP CONNECTION
+// 🔍 TEST SMTP ON START
 // ==============================
 transporter.verify((error) => {
   if (error) {
-    console.log("❌ SMTP NOT READY:", error);
+    console.log("❌ SMTP ERROR:", error);
   } else {
     console.log("✅ SMTP READY");
   }
@@ -39,7 +49,7 @@ transporter.verify((error) => {
 
 
 // ==============================
-// 🚀 SUBMIT ROUTE
+// 🚀 ROUTE SUBMIT
 // ==============================
 router.post("/submit", async (req, res) => {
   try {
@@ -48,12 +58,12 @@ router.post("/submit", async (req, res) => {
     console.log("📩 Incoming data:", data);
 
     // ==========================
-    // 💾 SAVE TO DATABASE
+    // 💾 SAVE DATABASE
     // ==========================
     const saved = await Enquiry.create(data);
 
     // ==========================
-    // ⚡ RESPOND FAST (ANTI TIMEOUT)
+    // ⚡ RESPONSE FAST
     // ==========================
     res.status(200).json({
       success: true,
@@ -96,7 +106,7 @@ router.post("/submit", async (req, res) => {
 
     transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
-        console.log("❌ EMAIL FAILED:");
+        console.log("❌ EMAIL FAILED FULL ERROR:");
         console.log(err);
         return;
       }
