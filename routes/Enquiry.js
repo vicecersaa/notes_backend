@@ -3,20 +3,22 @@ const router = express.Router();
 const Enquiry = require("../models/Enquiry");
 const nodemailer = require("nodemailer");
 
-// 🔥 FIX IMPORTANT: paksa IPv4 (mengatasi ENETUNREACH IPv6)
+// 🔥 FORCE IPv4 (FIX ENETUNREACH IPv6)
 const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 
 
-// ✅ SMTP CONFIG (lebih stabil dari service: "gmail")
+// ==============================
+// 📧 SMTP CONFIG (GMAIL FIXED)
+// ==============================
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587, // ❗ jangan 465
-  secure: false, // STARTTLS
-  family: 4, // 🔥 paksa IPv4
+  port: 587, // STARTTLS (JANGAN 465)
+  secure: false,
+  family: 4, // FORCE IPv4
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS, // HARUS APP PASSWORD
   },
   tls: {
     rejectUnauthorized: false,
@@ -24,39 +26,51 @@ const transporter = nodemailer.createTransport({
 });
 
 
-// ✅ TEST SMTP saat server start
-transporter.verify((error, success) => {
+// ==============================
+// 🔍 TEST SMTP CONNECTION
+// ==============================
+transporter.verify((error) => {
   if (error) {
-    console.log("❌ SMTP ERROR:", error);
+    console.log("❌ SMTP NOT READY:", error);
   } else {
     console.log("✅ SMTP READY");
   }
 });
 
 
-// 🚀 POST /api/submit
+// ==============================
+// 🚀 SUBMIT ROUTE
+// ==============================
 router.post("/submit", async (req, res) => {
   try {
     const data = req.body;
 
     console.log("📩 Incoming data:", data);
 
-    // ✅ 1. Simpan ke MongoDB
+    // ==========================
+    // 💾 SAVE TO DATABASE
+    // ==========================
     const saved = await Enquiry.create(data);
 
-    // ✅ 2. Balas ke client dulu (anti timeout / 502)
+    // ==========================
+    // ⚡ RESPOND FAST (ANTI TIMEOUT)
+    // ==========================
     res.status(200).json({
       success: true,
       message: "Enquiry submitted successfully",
       data: saved,
     });
 
-    // ✅ 3. Kirim email async (tidak blok response)
-    transporter.sendMail({
+
+    // ==========================
+    // 📧 SEND EMAIL (ASYNC)
+    // ==========================
+    const mailOptions = {
       from: `"Notes SG" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
       replyTo: data.email,
       subject: "New Event Enquiry",
+
       html: `
         <h2>New Event Enquiry</h2>
         <hr/>
@@ -78,9 +92,20 @@ router.post("/submit", async (req, res) => {
         <p><b>Budget:</b> ${data.budget || "-"}</p>
         <p><b>Requirements:</b> ${data.requirements || "-"}</p>
       `,
-    })
-    .then(() => console.log("✅ Email sent"))
-    .catch((err) => console.log("❌ Email error:", err));
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.log("❌ EMAIL FAILED:");
+        console.log(err);
+        return;
+      }
+
+      console.log("📨 EMAIL SENT SUCCESS:");
+      console.log("Message ID:", info.messageId);
+      console.log("Accepted:", info.accepted);
+      console.log("Rejected:", info.rejected);
+    });
 
   } catch (error) {
     console.error("❌ SERVER ERROR:", error);
