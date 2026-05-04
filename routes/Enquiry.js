@@ -1,16 +1,38 @@
 const express = require("express");
 const router = express.Router();
 const Enquiry = require("../models/Enquiry");
-const { Resend } = require("resend");
-
-// ==============================
-// 📧 INIT RESEND
-// ==============================
-const resend = new Resend(process.env.RESEND_API_KEY);
+const nodemailer = require("nodemailer");
 
 
 // ==============================
-// 🚀 POST /submit
+// 📧 SMTP HOSTINGER CONFIG
+// ==============================
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST, // smtp.hostinger.com
+  port: 465,
+  secure: true, // SSL wajib true untuk 465
+
+  auth: {
+    user: process.env.EMAIL_USER, // hello@notessg.com
+    pass: process.env.EMAIL_PASS, // password email HOSTINGER (tanpa spasi)
+  },
+});
+
+
+// ==============================
+// 🔍 TEST SMTP CONNECTION
+// ==============================
+transporter.verify((error) => {
+  if (error) {
+    console.log("❌ SMTP NOT READY:", error);
+  } else {
+    console.log("✅ SMTP READY (Hostinger)");
+  }
+});
+
+
+// ==============================
+// 🚀 SUBMIT ROUTE
 // ==============================
 router.post("/submit", async (req, res) => {
   try {
@@ -19,12 +41,12 @@ router.post("/submit", async (req, res) => {
     console.log("📩 Incoming data:", data);
 
     // ==========================
-    // 💾 SAVE TO DB
+    // 💾 SAVE DATABASE
     // ==========================
     const saved = await Enquiry.create(data);
 
     // ==========================
-    // ⚡ RESPONSE FAST
+    // ⚡ RESPOND FAST
     // ==========================
     res.status(200).json({
       success: true,
@@ -33,12 +55,12 @@ router.post("/submit", async (req, res) => {
     });
 
     // ==========================
-    // 📧 SEND EMAIL (NO SMTP)
+    // 📧 SEND EMAIL
     // ==========================
-    const emailResult = await resend.emails.send({
-      from: "Notes SG <onboarding@resend.dev>",
+    const mailOptions = {
+      from: `"Notes SG" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
-      reply_to: data.email,
+      replyTo: data.email,
       subject: "New Event Enquiry",
 
       html: `
@@ -62,12 +84,28 @@ router.post("/submit", async (req, res) => {
         <p><b>Budget:</b> ${data.budget || "-"}</p>
         <p><b>Requirements:</b> ${data.requirements || "-"}</p>
       `,
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.log("❌ EMAIL FAILED:");
+        console.log(err);
+        return;
+      }
+
+      console.log("📨 EMAIL SENT SUCCESS:");
+      console.log("Message ID:", info.messageId);
+      console.log("Accepted:", info.accepted);
+      console.log("Rejected:", info.rejected);
     });
 
-    console.log("📨 EMAIL SENT SUCCESS:", emailResult);
-
   } catch (error) {
-    console.error("❌ ERROR:", error);
+    console.error("❌ SERVER ERROR:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 });
 
