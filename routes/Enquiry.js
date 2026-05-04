@@ -1,55 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const Enquiry = require("../models/Enquiry");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
 // ==============================
-// 🔥 FORCE IPv4 (WAJIB DI VPS)
+// 📧 INIT RESEND
 // ==============================
-const dns = require("dns");
-dns.setDefaultResultOrder("ipv4first");
-
-
-// ==============================
-// 📧 SMTP TRANSPORTER (GMAIL FIXED)
-// ==============================
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465, // 🔥 pakai SSL (lebih cocok di VPS yang block STARTTLS)
-  secure: true, // wajib true kalau 465
-
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // APP PASSWORD GMAIL
-  },
-
-  // 🔥 bantu stabilin koneksi di VPS
-  family: 4,
-
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
-
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 
 // ==============================
-// 🔍 TEST SMTP ON START
-// ==============================
-transporter.verify((error) => {
-  if (error) {
-    console.log("❌ SMTP ERROR:", error);
-  } else {
-    console.log("✅ SMTP READY");
-  }
-});
-
-
-// ==============================
-// 🚀 ROUTE SUBMIT
+// 🚀 POST /submit
 // ==============================
 router.post("/submit", async (req, res) => {
   try {
@@ -58,7 +19,7 @@ router.post("/submit", async (req, res) => {
     console.log("📩 Incoming data:", data);
 
     // ==========================
-    // 💾 SAVE DATABASE
+    // 💾 SAVE TO DB
     // ==========================
     const saved = await Enquiry.create(data);
 
@@ -71,14 +32,13 @@ router.post("/submit", async (req, res) => {
       data: saved,
     });
 
-
     // ==========================
-    // 📧 SEND EMAIL (ASYNC)
+    // 📧 SEND EMAIL (NO SMTP)
     // ==========================
-    const mailOptions = {
-      from: `"Notes SG" <${process.env.EMAIL_USER}>`,
+    const emailResult = await resend.emails.send({
+      from: "Notes SG <onboarding@resend.dev>",
       to: process.env.EMAIL_TO,
-      replyTo: data.email,
+      reply_to: data.email,
       subject: "New Event Enquiry",
 
       html: `
@@ -102,28 +62,12 @@ router.post("/submit", async (req, res) => {
         <p><b>Budget:</b> ${data.budget || "-"}</p>
         <p><b>Requirements:</b> ${data.requirements || "-"}</p>
       `,
-    };
-
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.log("❌ EMAIL FAILED FULL ERROR:");
-        console.log(err);
-        return;
-      }
-
-      console.log("📨 EMAIL SENT SUCCESS:");
-      console.log("Message ID:", info.messageId);
-      console.log("Accepted:", info.accepted);
-      console.log("Rejected:", info.rejected);
     });
+
+    console.log("📨 EMAIL SENT SUCCESS:", emailResult);
 
   } catch (error) {
-    console.error("❌ SERVER ERROR:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    console.error("❌ ERROR:", error);
   }
 });
 
