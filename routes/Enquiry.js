@@ -3,7 +3,7 @@ const router = express.Router();
 const Enquiry = require("../models/Enquiry");
 const nodemailer = require("nodemailer");
 
-// 🔧 Setup SMTP (Hostinger)
+// ✅ SMTP (Gmail - lebih stabil)
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -12,22 +12,37 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// ✅ Test koneksi SMTP saat start
+transporter.verify((error, success) => {
+  if (error) {
+    console.log("❌ SMTP ERROR:", error);
+  } else {
+    console.log("✅ SMTP READY");
+  }
+});
+
 // 🚀 POST /api/submit
 router.post("/submit", async (req, res) => {
   try {
     const data = req.body;
 
-    // 🧪 Debug (boleh hapus nanti)
-    console.log("Incoming data:", data);
+    console.log("📩 Incoming data:", data);
 
     // ✅ 1. Save ke MongoDB
     const saved = await Enquiry.create(data);
 
-    // ✅ 2. Kirim email ke admin
-    await transporter.sendMail({
+    // ✅ 2. Kirim response dulu (ANTI 502)
+    res.status(200).json({
+      success: true,
+      message: "Enquiry submitted successfully",
+      data: saved,
+    });
+
+    // ✅ 3. Kirim email di background (NON-BLOCKING)
+    transporter.sendMail({
       from: `"Notes SG" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
-      replyTo: data.email, // biar kalau reply langsung ke user
+      replyTo: data.email,
       subject: "New Event Enquiry",
       html: `
         <h2>New Event Enquiry</h2>
@@ -50,17 +65,12 @@ router.post("/submit", async (req, res) => {
         <p><b>Budget:</b> ${data.budget || "-"}</p>
         <p><b>Requirements:</b> ${data.requirements || "-"}</p>
       `,
-    });
-
-    // ✅ Response ke frontend
-    res.status(200).json({
-      success: true,
-      message: "Enquiry submitted successfully",
-      data: saved,
-    });
+    })
+    .then(() => console.log("✅ Email sent"))
+    .catch(err => console.log("❌ Email error:", err));
 
   } catch (error) {
-    console.error("ERROR:", error);
+    console.error("❌ SERVER ERROR:", error);
 
     res.status(500).json({
       success: false,
