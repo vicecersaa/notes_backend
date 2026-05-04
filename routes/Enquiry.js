@@ -11,12 +11,12 @@ dns.setDefaultResultOrder("ipv4first");
 // ✅ SMTP CONFIG (lebih stabil dari service: "gmail")
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587,
+  port: 587, // ❗ jangan 465
   secure: false, // STARTTLS
   family: 4, // 🔥 paksa IPv4
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // wajib App Password Gmail
+    pass: process.env.EMAIL_PASS,
   },
   tls: {
     rejectUnauthorized: false,
