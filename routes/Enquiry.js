@@ -3,16 +3,28 @@ const router = express.Router();
 const Enquiry = require("../models/Enquiry");
 const nodemailer = require("nodemailer");
 
-// ✅ SMTP (Gmail - lebih stabil)
+// 🔥 FIX IMPORTANT: paksa IPv4 (mengatasi ENETUNREACH IPv6)
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
+
+
+// ✅ SMTP CONFIG (lebih stabil dari service: "gmail")
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // STARTTLS
+  family: 4, // 🔥 paksa IPv4
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS, // wajib App Password Gmail
+  },
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
-// ✅ Test koneksi SMTP saat start
+
+// ✅ TEST SMTP saat server start
 transporter.verify((error, success) => {
   if (error) {
     console.log("❌ SMTP ERROR:", error);
@@ -21,6 +33,7 @@ transporter.verify((error, success) => {
   }
 });
 
+
 // 🚀 POST /api/submit
 router.post("/submit", async (req, res) => {
   try {
@@ -28,17 +41,17 @@ router.post("/submit", async (req, res) => {
 
     console.log("📩 Incoming data:", data);
 
-    // ✅ 1. Save ke MongoDB
+    // ✅ 1. Simpan ke MongoDB
     const saved = await Enquiry.create(data);
 
-    // ✅ 2. Kirim response dulu (ANTI 502)
+    // ✅ 2. Balas ke client dulu (anti timeout / 502)
     res.status(200).json({
       success: true,
       message: "Enquiry submitted successfully",
       data: saved,
     });
 
-    // ✅ 3. Kirim email di background (NON-BLOCKING)
+    // ✅ 3. Kirim email async (tidak blok response)
     transporter.sendMail({
       from: `"Notes SG" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
@@ -67,7 +80,7 @@ router.post("/submit", async (req, res) => {
       `,
     })
     .then(() => console.log("✅ Email sent"))
-    .catch(err => console.log("❌ Email error:", err));
+    .catch((err) => console.log("❌ Email error:", err));
 
   } catch (error) {
     console.error("❌ SERVER ERROR:", error);
