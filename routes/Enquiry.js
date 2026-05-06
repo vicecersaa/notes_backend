@@ -22,7 +22,6 @@ router.post("/submit", async (req, res) => {
 
     // 3) Kirim email (async)
     const result = await resend.emails.send({
-      // ⬇️ PENTING: ganti sesuai status kamu (lihat bagian 3)
       from: "Notes SG <noreply@notessg.com>",
       to: process.env.EMAIL_TO,
       reply_to: data.email,
@@ -43,6 +42,7 @@ router.post("/submit", async (req, res) => {
 
         <p><b>PAX:</b> ${data.pax || "-"}</p>
         <p><b>Seating:</b> ${data.seating || "-"}</p>
+        <p><b>Food & Drinks:</b> ${data.foodDrinkPreference || "-"}</p>
         <p><b>Package:</b> ${data.packageInterested || "-"}</p>
 
         <p><b>Budget:</b> ${data.budget || "-"}</p>

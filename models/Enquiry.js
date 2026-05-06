@@ -27,7 +27,7 @@ const enquirySchema = new mongoose.Schema(
       required: true,
     },
     eventDate: {
-      type: String, // bisa nanti upgrade ke Date
+      type: String,
     },
     eventTime: {
       type: String,
@@ -39,10 +39,15 @@ const enquirySchema = new mongoose.Schema(
       type: Number,
     },
     seating: {
+      type: String, // sudah include "Others: ..." kalau user pilih Others
+    },
+    foodDrinkPreference: {
       type: String,
+      enum: ["Buffet Package", "Ala Carte", ""],
+      default: "",
     },
     packageInterested: {
-      type: String, // "yes" / "no"
+      type: String,
       enum: ["yes", "no"],
     },
     budget: {
