@@ -46,10 +46,6 @@ const enquirySchema = new mongoose.Schema(
       enum: ["Buffet Package", "Ala Carte", ""],
       default: "",
     },
-    packageInterested: {
-      type: String,
-      enum: ["yes", "no"],
-    },
     budget: {
       type: String,
     },

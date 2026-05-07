@@ -43,7 +43,7 @@ router.post("/submit", async (req, res) => {
         <p><b>PAX:</b> ${data.pax || "-"}</p>
         <p><b>Seating:</b> ${data.seating || "-"}</p>
         <p><b>Food & Drinks:</b> ${data.foodDrinkPreference || "-"}</p>
-        <p><b>Package:</b> ${data.packageInterested || "-"}</p>
+       
 
         <p><b>Budget:</b> ${data.budget || "-"}</p>
         <p><b>Requirements:</b> ${data.requirements || "-"}</p>
